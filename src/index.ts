@@ -60,36 +60,42 @@ async function readConfigFile(
 }
 
 async function loadConfig(state: ReplaceState): Promise<ReplaceConfig> {
-  if (!shouldReloadConfig(state) && state.cachedConfig) {
-    return state.cachedConfig;
+  try {
+    if (!shouldReloadConfig(state) && state.cachedConfig) {
+      return state.cachedConfig;
+    }
+
+    const projectConfig = state.projectConfigPath
+      ? await readConfigFile(state.projectConfigPath)
+      : undefined;
+    const globalConfig = state.globalConfigPath
+      ? await readConfigFile(state.globalConfigPath)
+      : undefined;
+
+    const merged: ReplaceConfig = {
+      ...DEFAULT_CONFIG,
+      ...(globalConfig ?? {}),
+      ...(projectConfig ?? {}),
+    };
+
+    const envEnabled = parseBool(process.env[ENV_ENABLED]);
+    if (envEnabled !== undefined) {
+      merged.enabled = envEnabled;
+    }
+
+    const envReplacement = process.env[ENV_REPLACEMENT];
+    if (envReplacement && envReplacement.trim().length > 0) {
+      merged.replacement = envReplacement;
+    }
+
+    state.cachedConfig = merged;
+    state.lastLoaded = Date.now();
+    return merged;
+  } catch (error) {
+    console.error("[renamer-opencode-plugin] loadConfig error:", error);
+    // Return default config on error to prevent plugin from breaking
+    return DEFAULT_CONFIG;
   }
-
-  const projectConfig = state.projectConfigPath
-    ? await readConfigFile(state.projectConfigPath)
-    : undefined;
-  const globalConfig = state.globalConfigPath
-    ? await readConfigFile(state.globalConfigPath)
-    : undefined;
-
-  const merged: ReplaceConfig = {
-    ...DEFAULT_CONFIG,
-    ...(globalConfig ?? {}),
-    ...(projectConfig ?? {}),
-  };
-
-  const envEnabled = parseBool(process.env[ENV_ENABLED]);
-  if (envEnabled !== undefined) {
-    merged.enabled = envEnabled;
-  }
-
-  const envReplacement = process.env[ENV_REPLACEMENT];
-  if (envReplacement && envReplacement.trim().length > 0) {
-    merged.replacement = envReplacement;
-  }
-
-  state.cachedConfig = merged;
-  state.lastLoaded = Date.now();
-  return merged;
 }
 
 function replaceOpencode(text: string, replacement: string): string {
@@ -164,6 +170,7 @@ function replaceInInlineCodeSegments(
 }
 
 function replaceInText(text: string, replacement: string): string {
+  if (!text || typeof text !== "string") return text;
   const blocks = text.split("```");
   return blocks
     .map((block, index) => {
@@ -177,6 +184,7 @@ function replaceInParts(
   parts: Array<Record<string, unknown>>,
   replacement: string,
 ): void {
+  if (!parts || !Array.isArray(parts)) return;
   for (const part of parts) {
     if (part.type === "text" && typeof part.text === "string") {
       part.text = replaceInText(part.text, replacement);
@@ -208,6 +216,7 @@ function replaceInMessages(
   }>,
   replacement: string,
 ): void {
+  if (!messages || !Array.isArray(messages)) return;
   for (const message of messages) {
     replaceInParts(message.parts, replacement);
     if (typeof message.info?.title === "string") {
@@ -248,8 +257,13 @@ export const RenamerReplacePlugin: Plugin = async ({
   async function withConfig<T>(
     fn: (config: ReplaceConfig) => Promise<T> | T,
   ): Promise<T> {
-    const config = await loadConfig(state);
-    return fn(config);
+    try {
+      const config = await loadConfig(state);
+      return fn(config);
+    } catch (error) {
+      console.error("[renamer-opencode-plugin] withConfig error:", error);
+      throw error;
+    }
   }
 
   return {
@@ -280,6 +294,11 @@ export const RenamerReplacePlugin: Plugin = async ({
             path: { id: sessionID },
             body: { title: updated },
           });
+        }).catch((error) => {
+          console.error(
+            "[renamer-opencode-plugin] event.session.updated error:",
+            error,
+          );
         });
       }
     },
@@ -287,18 +306,30 @@ export const RenamerReplacePlugin: Plugin = async ({
     "chat.message": async (_input, output) => {
       await withConfig((config) => {
         if (!config.enabled) return;
+        if (!output.parts || !Array.isArray(output.parts)) return;
         replaceInParts(
           output.parts as Array<Record<string, unknown>>,
           config.replacement,
         );
+      }).catch((error) => {
+        console.error("[renamer-opencode-plugin] chat.message error:", error);
       });
     },
 
     "experimental.chat.system.transform": async (_input, output) => {
       await withConfig((config) => {
         if (!config.enabled) return;
-        output.system = output.system.map((item) =>
-          replaceInText(item, config.replacement),
+        const system = output?.system;
+        if (!system || !Array.isArray(system)) return;
+        for (let i = 0; i < system.length; i += 1) {
+          if (typeof system[i] === "string") {
+            system[i] = replaceInText(system[i], config.replacement);
+          }
+        }
+      }).catch((error) => {
+        console.error(
+          "[renamer-opencode-plugin] experimental.chat.system.transform error:",
+          error,
         );
       });
     },
@@ -306,6 +337,7 @@ export const RenamerReplacePlugin: Plugin = async ({
     "experimental.chat.messages.transform": async (_input, output) => {
       await withConfig((config) => {
         if (!config.enabled) return;
+        if (!output.messages || !Array.isArray(output.messages)) return;
         replaceInMessages(
           output.messages as Array<{
             info: Record<string, unknown>;
@@ -313,13 +345,24 @@ export const RenamerReplacePlugin: Plugin = async ({
           }>,
           config.replacement,
         );
+      }).catch((error) => {
+        console.error(
+          "[renamer-opencode-plugin] experimental.chat.messages.transform error:",
+          error,
+        );
       });
     },
 
     "experimental.text.complete": async (_input, output) => {
       await withConfig((config) => {
         if (!config.enabled) return;
+        if (typeof output.text !== "string") return;
         output.text = replaceInText(output.text, config.replacement);
+      }).catch((error) => {
+        console.error(
+          "[renamer-opencode-plugin] experimental.text.complete error:",
+          error,
+        );
       });
     },
 
@@ -332,6 +375,11 @@ export const RenamerReplacePlugin: Plugin = async ({
         if (typeof output.output === "string") {
           output.output = replaceInText(output.output, config.replacement);
         }
+      }).catch((error) => {
+        console.error(
+          "[renamer-opencode-plugin] tool.execute.after error:",
+          error,
+        );
       });
     },
   };
