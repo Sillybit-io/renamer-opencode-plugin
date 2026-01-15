@@ -33,7 +33,7 @@ bun add -d @sillybit/renamer-opencode-plugin
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@sillybit/renamer-opencode-plugin"]
+  "plugin": ["@sillybit/renamer-opencode-plugin@latest"]
 }
 ```
 
