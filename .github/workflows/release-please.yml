@@ -2,6 +2,11 @@ name: Release Please
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Force release version (e.g., 1.2.3). Leave empty for automatic versioning."
+        required: false
+        type: string
   push:
     branches:
       - main
@@ -15,6 +20,20 @@ jobs:
       pull-requests: write
       id-token: write
     steps:
+      - name: Checkout (for force release)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Force release version
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "fix: force release ${{ github.event.inputs.version }}" -m "Release-As: ${{ github.event.inputs.version }}"
+          git push
+
       - uses: googleapis/release-please-action@v4
         id: release
         with:
