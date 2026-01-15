@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# opencode local plugin/config
+.opencode/
+
+# logs
+*.log
+
+# environment files
+.env
+.env.*
+!.env.example
+
+# editor/OS junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# misc artifacts
+*.tgz

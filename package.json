@@ -1,0 +1,52 @@
+{
+  "name": "renamer-opencode-plugin",
+  "version": "0.1.0",
+  "description": "OpenCode plugin that replaces case-insensitive 'opencode' text with a configurable value (default: 'Renamer') across chat messages, system prompts, tool outputs, and session titles",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "bun run build",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "check": "biome check --write ."
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sillybit-io/renamer-opencode-plugin.git"
+  },
+  "homepage": "https://github.com/Sillybit-io/renamer-opencode-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/Sillybit-io/renamer-opencode-plugin/issues"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "renamer",
+    "text-transform"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.1.21"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.11",
+    "@types/node": "^24.5.0",
+    "typescript": "^5.9.3"
+  }
+}

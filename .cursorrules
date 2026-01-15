@@ -1,0 +1,269 @@
+# Cursor Agent Rules for renamer-opencode-plugin
+
+## PROJECT OVERVIEW
+
+TypeScript OpenCode plugin that performs case-insensitive text replacement of `opencode` with a configurable value (default: `Renamer`) across multiple OpenCode plugin hooks. The plugin intelligently excludes URLs, file paths, and code blocks from replacement to preserve technical accuracy.
+
+**Package Name:** `renamer-opencode-plugin`  
+**Main Entry:** `src/index.ts`  
+**Build Output:** `dist/index.js` and `dist/index.d.ts`  
+**Package Manager:** Bun
+
+## ABOUT OPENCODE
+
+OpenCode is an AI-powered development environment that provides a plugin system for extending functionality. Key concepts:
+
+- **Plugin System:** OpenCode plugins are TypeScript/JavaScript modules that export a plugin function
+- **Plugin Function:** Receives `{ client, directory, worktree }` and returns an object with hook handlers
+- **Hooks:** Lifecycle events and transformation points where plugins can intercept and modify behavior
+- **Configuration:** Plugins can read from:
+  - Project config: `.opencode/plugin-name-config.json` or `opencode.json`
+  - Global config: `~/.config/opencode/plugin-name-config.json`
+  - Environment variables
+- **Client API:** Provides access to OpenCode services (e.g., `client.session.update()`)
+- **Plugin Directory:** Plugins can be installed:
+  - Locally: `.opencode/plugin/plugin-name.js`
+  - Via npm/bun: Listed in `opencode.json` or `opencode.jsonc` config file
+
+### OpenCode Plugin Types
+
+1. **Event Hooks:** React to file system events, session updates, etc.
+2. **Transform Hooks:** Modify content as it flows through the system:
+   - `chat.message` - Transform chat message outputs
+   - `experimental.chat.system.transform` - Transform system prompts
+   - `experimental.chat.messages.transform` - Transform message history
+   - `experimental.text.complete` - Transform text completions
+   - `tool.execute.after` - Transform tool execution results
+
+## ARCHITECTURE
+
+### Core Components
+
+1. **Plugin Export** (`RenamerReplacePlugin`)
+   - Main plugin function that returns hook handlers
+   - Manages plugin state and configuration loading
+   - Located at: `src/index.ts:228`
+
+2. **Configuration System**
+   - **Config Files:** JSON files loaded from:
+     - Global: `~/.config/opencode/renamer-config.json`
+     - Project: `.opencode/renamer-config.json`
+   - **Environment Variables:**
+     - `OPENCODE_RENAMER_REPLACE_ENABLED` (boolean)
+     - `OPENCODE_RENAMER_REPLACE_TEXT` (string)
+   - **Precedence:** Env vars > Project config > Global config > Defaults
+   - **Caching:** Config is cached for 1 second to reduce file I/O
+
+3. **Text Replacement Engine**
+   - **Main Regex:** `/opencode/gi` (case-insensitive)
+   - **Exclusion Patterns:**
+     - URLs: `/https?:\/\/[^\s`"')\]]+/gi`
+     - File paths: Complex regex matching Windows, Unix, and relative paths
+   - **Protected Regions:**
+     - Fenced code blocks (```...```)
+     - Inline code (`...`)
+     - URLs and file paths
+
+### Plugin Hooks Implemented
+
+1. **`event`** - Handles file system and session events
+   - `file.edited` / `file.watcher.updated`: Invalidates config cache when config files change
+   - `session.updated`: Updates session titles containing "opencode"
+
+2. **`chat.message`** - Transforms chat message output parts
+   - Processes all parts in the output, replacing text while preserving structure
+
+3. **`experimental.chat.system.transform`** - Transforms system prompts
+   - Maps over system array, replacing text in each item
+
+4. **`experimental.chat.messages.transform`** - Transforms message history
+   - Processes all messages, including parts and info titles
+
+5. **`experimental.text.complete`** - Transforms text completion output
+   - Direct text replacement on output.text
+
+6. **`tool.execute.after`** - Transforms tool execution results
+   - Replaces text in both `output.title` and `output.output`
+
+## CODE STRUCTURE
+
+### Type Definitions
+
+```typescript
+type ReplaceConfig = {
+  enabled: boolean;
+  replacement: string;
+}
+
+type OptionalReplaceConfig = Partial<ReplaceConfig>
+
+type ReplaceState = {
+  cachedConfig?: ReplaceConfig;
+  lastLoaded?: number;
+  projectConfigPath?: string;
+  globalConfigPath?: string;
+}
+```
+
+### Key Functions
+
+- **`loadConfig(state)`**: Loads and merges config from files and env vars
+- **`replaceInText(text, replacement)`**: Main replacement function with code block protection
+- **`replaceInInlineCodeSegments(text, replacement)`**: Handles inline code protection
+- **`replaceExcludingUrlsAndPaths(text, replacement)`**: Excludes URLs and paths
+- **`replaceOutsideRanges(text, replacement, ranges)`**: Core range-based replacement logic
+- **`replaceInParts(parts, replacement)`**: Processes message parts recursively
+- **`replaceInMessages(messages, replacement)`**: Processes full message arrays
+
+### Constants
+
+- `DEFAULT_CONFIG`: `{ enabled: true, replacement: "Renamer" }`
+- `CONFIG_FILENAME`: `"renamer-config.json"`
+- `ENV_ENABLED`: `"OPENCODE_RENAMER_REPLACE_ENABLED"`
+- `ENV_REPLACEMENT`: `"OPENCODE_RENAMER_REPLACE_TEXT"`
+
+## DEVELOPMENT GUIDELINES
+
+### Code Style
+
+- **Indentation:** 2 spaces
+- **Imports:** Use explicit Node.js imports (`node:fs/promises`, `node:path`, `node:os`)
+- **Types:** Prefer explicit types, avoid `any`
+- **Error Handling:** Graceful fallbacks, no throwing on config errors
+- **Naming:** 
+  - Constants: `SCREAMING_SNAKE_CASE`
+  - Functions: `camelCase` with descriptive names
+  - Types: `PascalCase`
+
+### Important Constraints
+
+1. **Never replace inside:**
+   - URLs (e.g., `https://opencode.ai/...`)
+   - File paths (e.g., `.opencode/...`, `/usr/local/...`)
+   - Inline code (`` `code` ``)
+   - Fenced code blocks (```code```)
+
+2. **Configuration Loading:**
+   - Always use `withConfig()` helper to ensure config is loaded
+   - Config cache invalidates on file changes or after 1 second
+   - Missing config files are treated as undefined (not errors)
+
+3. **Text Processing:**
+   - Always check `config.enabled` before processing
+   - Process text recursively through parts and messages
+   - Preserve original structure and types
+
+### Build Process
+
+```bash
+bun install          # Install dependencies
+bun run build        # Compiles TypeScript to dist/ (runs tsc)
+bun pm pack --dry-run # Runs build via prepack, then verifies publish contents
+```
+
+- **Package Manager:** Bun (uses `bun.lock` for dependency locking)
+- **Output:** `dist/index.js` (ESM), `dist/index.d.ts` (types)
+- **Target:** ES2022, Module: ES2022
+- **Strict mode:** Enabled
+- **Note:** `prepack` runs `bun run build`
+
+### Testing Considerations
+
+- Test replacement in various contexts (chat, system prompts, tool outputs)
+- Verify exclusions work correctly (URLs, paths, code blocks)
+- Test config loading precedence (env > project > global > default)
+- Test config cache invalidation on file changes
+- Test with disabled config (`enabled: false`)
+
+## COMMON TASKS
+
+### Adding a New Hook
+
+1. Add handler to plugin return object
+2. Use `withConfig()` to get configuration
+3. Check `config.enabled` before processing
+4. Use appropriate replacement function (`replaceInText`, `replaceInParts`, etc.)
+
+### Modifying Replacement Logic
+
+- Core regex: `OPENCODE_REGEX` constant
+- Exclusion patterns: `URL_REGEX` and `PATH_REGEX`
+- Main entry point: `replaceInText()` function
+- Range-based logic: `replaceOutsideRanges()` function
+
+### Changing Configuration
+
+- Update `DEFAULT_CONFIG` for default values
+- Update `CONFIG_FILENAME` for file name
+- Update `ENV_*` constants for environment variable names
+- Update documentation in README.md and AGENTS.md
+
+## FILE STRUCTURE
+
+```
+.
+├── src/
+│   └── index.ts          # Main plugin implementation
+├── dist/                 # Build output (generated)
+├── package.json          # Package metadata
+├── tsconfig.json         # TypeScript configuration
+├── README.md             # User documentation
+├── AGENTS.md             # Project knowledge base
+└── .cursorrules          # This file
+```
+
+## COMMIT CONVENTIONS
+
+This project follows [Conventional Commits](https://www.conventionalcommits.org/) specification.
+All agents and Cursor must use Conventional Commits for every commit.
+
+**Commit Message Format:**
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Required Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, missing semicolons, etc.)
+- `refactor`: Code refactoring
+- `perf`: Performance improvements
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks (dependencies, build config, etc.)
+
+**Breaking Changes:**
+Use `!` after the type/scope: `feat!: change default replacement`
+
+**Examples:**
+- `feat: add support for custom replacement patterns`
+- `fix: exclude URLs from text replacement`
+- `docs: update installation instructions`
+- `chore: update dependencies`
+
+**When making commits:**
+- Always use conventional commit format
+- Keep subject line under 72 characters
+- Use imperative mood ("add" not "added" or "adds")
+- Reference issues/PRs in footer if applicable
+
+## NOTES
+
+- **Package Manager:** Bun (all commands should use `bun` instead of `npm`)
+- Plugin uses ESM (`type: "module"` in package.json)
+- Requires Node.js >= 18 (or Bun runtime)
+- No external dependencies except `@opencode-ai/plugin`
+- Lock file: `bun.lock` (not `package-lock.json` or `yarn.lock`)
+- Code formatting: Biome (configured in `biome.json`)
+- No test framework configured (consider adding tests)
+
+### OpenCode Integration
+
+- Plugins are loaded from `.opencode/plugin/` directory or via npm/bun registry
+- Configuration files follow pattern: `~/.config/opencode/` (global) and `.opencode/` (project)
+- Plugin hooks are called asynchronously and can modify outputs in-place
+- The `client` object provides access to OpenCode APIs for session management, file operations, etc.
