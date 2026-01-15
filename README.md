@@ -1,4 +1,4 @@
-# renamer-opencode-plugin
+# @sillybit/renamer-opencode-plugin
 
 A small OpenCode plugin that **replaces case-insensitive occurrences of `opencode`** with a configurable word (default: `Renamer`) across OpenCode outputs.
 
@@ -22,18 +22,24 @@ It **does not replace** inside:
 
 ## Quickstart (npm)
 
-1. Add the plugin to your OpenCode config (`opencode.json` or `opencode.jsonc`):
+1. Install the plugin in your project:
+
+```bash
+bun add -d @sillybit/renamer-opencode-plugin
+```
+
+2. Add the plugin to your OpenCode config (`opencode.json` or `opencode.jsonc`):
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["renamer-opencode-plugin"]
+  "plugin": ["@sillybit/renamer-opencode-plugin"]
 }
 ```
 
-2. Restart OpenCode.
+3. Restart OpenCode.
 
-OpenCode installs npm plugins automatically at startup (cached under `~/.cache/opencode/node_modules/`).
+OpenCode installs npm plugins automatically at startup (cached under `~/.cache/opencode/node_modules/`), so the manual install step is optional.
 
 ## Configuration
 
@@ -103,6 +109,7 @@ bun run build
 This project follows [Conventional Commits](https://www.conventionalcommits.org/) specification.
 
 **Format:**
+
 ```
 <type>(<scope>): <subject>
 
@@ -112,6 +119,7 @@ This project follows [Conventional Commits](https://www.conventionalcommits.org/
 ```
 
 **Types:**
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation changes
@@ -122,6 +130,7 @@ This project follows [Conventional Commits](https://www.conventionalcommits.org/
 - `chore`: Maintenance tasks (dependencies, build config, etc.)
 
 **Examples:**
+
 ```
 feat: add support for custom replacement patterns
 fix: exclude URLs from text replacement
@@ -131,6 +140,7 @@ chore: update dependencies
 
 **Breaking Changes:**
 Use `!` after the type/scope to indicate breaking changes:
+
 ```
 feat!: change default replacement from "Renamer" to "Custom"
 ```

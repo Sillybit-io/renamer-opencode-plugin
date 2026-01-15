@@ -94,6 +94,13 @@ bun publish
 - No test runner configured.
 - Single-test execution: not applicable until tests are added.
 
+### Release Automation
+
+- Uses `release-please` via `.github/workflows/release-please.yml`.
+- Config files: `release-please-config.json`, `.release-please-manifest.json`.
+- Publishes to npm automatically on release creation (requires `NPM_TOKEN` secret).
+- Manual publish workflow retained as `workflow_dispatch` in `.github/workflows/publish.yml`.
+
 ## CODE STYLE GUIDELINES
 
 ### General

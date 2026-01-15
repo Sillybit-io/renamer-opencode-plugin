@@ -161,6 +161,12 @@ bun run build        # Compiles TypeScript to dist/ (runs tsc)
 bun pm pack --dry-run # Runs build via prepack, then verifies publish contents
 ```
 
+### Release Automation
+
+- `release-please` workflow: `.github/workflows/release-please.yml`
+- Config files: `release-please-config.json`, `.release-please-manifest.json`
+- Publishes to npm on release creation (requires `NPM_TOKEN` secret)
+
 - **Package Manager:** Bun (uses `bun.lock` for dependency locking)
 - **Output:** `dist/index.js` (ESM), `dist/index.d.ts` (types)
 - **Target:** ES2022, Module: ES2022

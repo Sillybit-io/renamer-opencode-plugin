@@ -1,5 +1,5 @@
 {
-  "name": "renamer-opencode-plugin",
+  "name": "@sillybit/renamer-opencode-plugin",
   "version": "0.1.0",
   "description": "OpenCode plugin that replaces case-insensitive 'opencode' text with a configurable value (default: 'Renamer') across chat messages, system prompts, tool outputs, and session titles",
   "type": "module",
@@ -24,6 +24,9 @@
     "check": "biome check --write ."
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/Sillybit-io/renamer-opencode-plugin.git"
