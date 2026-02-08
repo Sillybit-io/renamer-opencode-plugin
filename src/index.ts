@@ -98,12 +98,12 @@ async function loadConfig(state: ReplaceState): Promise<ReplaceConfig> {
   }
 }
 
-function replaceOpencode(text: string, replacement: string): string {
+export function replaceOpencode(text: string, replacement: string): string {
   if (!text) return text;
   return text.replace(OPENCODE_REGEX, replacement);
 }
 
-function replaceOutsideRanges(
+export function replaceOutsideRanges(
   text: string,
   replacement: string,
   ranges: Array<[number, number]>,
@@ -135,7 +135,7 @@ function replaceOutsideRanges(
   return result;
 }
 
-function replaceExcludingUrlsAndPaths(
+export function replaceExcludingUrlsAndPaths(
   text: string,
   replacement: string,
 ): string {
@@ -156,7 +156,7 @@ function replaceExcludingUrlsAndPaths(
   return replaceOutsideRanges(text, replacement, ranges);
 }
 
-function replaceInInlineCodeSegments(
+export function replaceInInlineCodeSegments(
   text: string,
   replacement: string,
 ): string {
@@ -169,7 +169,7 @@ function replaceInInlineCodeSegments(
     .join("`");
 }
 
-function replaceInText(text: string, replacement: string): string {
+export function replaceInText(text: string, replacement: string): string {
   if (!text || typeof text !== "string") return text;
   const blocks = text.split("```");
   return blocks
