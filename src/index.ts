@@ -29,7 +29,7 @@ const ENV_REPLACEMENT = "OPENCODE_RENAMER_REPLACE_TEXT";
 
 const URL_REGEX = /https?:\/\/[^\s`"')\]]+/gi;
 const PATH_REGEX =
-  /(?:\b[a-zA-Z]:\\[^\s`"')\]]+)|(?:~\/[^\s`"')\]]+)|(?:\.\.?\/[^\s`"')\]]+)|(?:\/[^\s`"')\]]+)/g;
+  /(?:\b[a-zA-Z]:\\[^\s`"')\]]+)|(?:~\/[^\s`"')\]]+)|(?:\.\.?\/[^\s`"')\]]+)/g;
 
 const OPENCODE_REGEX = /opencode/gi;
 
@@ -103,19 +103,44 @@ export function replaceOpencode(text: string, replacement: string): string {
   return text.replace(OPENCODE_REGEX, replacement);
 }
 
+export function mergeRanges(
+  ranges: Array<[number, number]>,
+): Array<[number, number]> {
+  if (ranges.length === 0) return [];
+
+  const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
+  const merged: Array<[number, number]> = [[sorted[0][0], sorted[0][1]]];
+
+  for (let i = 1; i < sorted.length; i += 1) {
+    const current = sorted[i];
+    const last = merged[merged.length - 1];
+
+    if (current[0] <= last[1]) {
+      last[1] = Math.max(last[1], current[1]);
+      continue;
+    }
+
+    merged.push([current[0], current[1]]);
+  }
+
+  return merged;
+}
+
 export function replaceOutsideRanges(
   text: string,
   replacement: string,
   ranges: Array<[number, number]>,
 ): string {
   if (ranges.length === 0) return replaceOpencode(text, replacement);
-  const sorted = ranges
-    .map(
-      (range) =>
-        [Math.max(0, range[0]), Math.max(0, range[1])] as [number, number],
-    )
-    .filter(([start, end]) => end > start)
-    .sort((a, b) => a[0] - b[0]);
+  const sorted = mergeRanges(
+    ranges
+      .map(
+        (range) =>
+          [Math.max(0, range[0]), Math.max(0, range[1])] as [number, number],
+      )
+      .filter(([start, end]) => end > start)
+      .sort((a, b) => a[0] - b[0]),
+  );
 
   let result = "";
   let cursor = 0;
