@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import type { HooksConfig } from "../src/index";
-import { DEFAULT_HOOKS_CONFIG, mergeHooksConfig } from "../src/index";
+import type { HooksConfig } from "../src/helpers";
+import { DEFAULT_HOOKS_CONFIG, mergeHooksConfig } from "../src/helpers";
 
 describe("hook config defaults", () => {
   test("all hooks default to true when hooks config is omitted", () => {

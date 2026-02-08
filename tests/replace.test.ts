@@ -4,7 +4,7 @@ import {
   replaceExcludingUrlsAndPaths,
   replaceInText,
   replaceOutsideRanges,
-} from "../src/index";
+} from "../src/helpers";
 
 const URL_DOCS = ["https", "://", "opencode.ai", "/docs"].join("");
 const URL_HOME = ["https", "://", "opencode.ai"].join("");

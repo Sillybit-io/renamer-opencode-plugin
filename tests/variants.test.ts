@@ -4,7 +4,7 @@ import {
   generateCaseVariants,
   replaceInText,
   splitIntoWords,
-} from "../src/index";
+} from "../src/helpers";
 
 describe("splitIntoWords", () => {
   test("splits 'opencode' into ['open', 'code']", () => {

@@ -5,7 +5,7 @@ import {
   mergeHooksConfig,
   replaceInText,
   splitIntoWords,
-} from "../src/index";
+} from "../src/helpers";
 
 describe("integration - all features combined", () => {
   test("bug fix + variants: URL with opencode + variant in text → only text replaced", () => {

@@ -3,13 +3,14 @@ import os from "node:os";
 import path from "node:path";
 import type { Plugin } from "@opencode-ai/plugin";
 
-export type HooksConfig = {
-  chatMessage: boolean;
-  system: boolean;
-  messageHistory: boolean;
-  textComplete: boolean;
-  toolOutput: boolean;
-};
+import {
+  buildVariantRegex,
+  DEFAULT_HOOKS_CONFIG,
+  generateCaseVariants,
+  type HooksConfig,
+  mergeHooksConfig,
+  splitIntoWords,
+} from "./helpers";
 
 type ReplaceConfig = {
   enabled: boolean;
@@ -28,25 +29,6 @@ type ReplaceState = {
   variantRegex?: RegExp;
 };
 
-export const DEFAULT_HOOKS_CONFIG: HooksConfig = {
-  chatMessage: true,
-  system: true,
-  messageHistory: true,
-  textComplete: true,
-  toolOutput: true,
-};
-
-export function mergeHooksConfig(
-  globalHooks: Partial<HooksConfig> | undefined,
-  projectHooks: Partial<HooksConfig> | undefined,
-): HooksConfig {
-  return {
-    ...DEFAULT_HOOKS_CONFIG,
-    ...(globalHooks ?? {}),
-    ...(projectHooks ?? {}),
-  };
-}
-
 const DEFAULT_CONFIG: ReplaceConfig = {
   enabled: true,
   replacement: "Renamer",
@@ -64,43 +46,6 @@ const PATH_REGEX =
   /(?:\b[a-zA-Z]:\\[^\s`"')\]]+)|(?:~\/[^\s`"')\]]+)|(?:\.\.?\/[^\s`"')\]]+)/g;
 
 const OPENCODE_REGEX = /opencode/gi;
-
-export function splitIntoWords(target: string): string[] {
-  // For "opencode", hardcoded since it has no camelCase boundaries
-  if (target.toLowerCase() === "opencode") {
-    return ["open", "code"];
-  }
-  return [target];
-}
-
-export function generateCaseVariants(words: string[]): string[] {
-  const lower = words.map((w) => w.toLowerCase());
-  const upper = words.map((w) => w.toUpperCase());
-  const capitalize = (w: string) =>
-    w[0].toUpperCase() + w.slice(1).toLowerCase();
-
-  return [
-    // camelCase: openCode
-    lower[0] + words.slice(1).map(capitalize).join(""),
-    // PascalCase: OpenCode
-    words.map(capitalize).join(""),
-    // kebab-case: open-code
-    lower.join("-"),
-    // snake_case: open_code
-    lower.join("_"),
-    // SCREAMING_SNAKE: OPEN_CODE
-    upper.join("_"),
-    // SCREAMING_KEBAB: OPEN-CODE
-    upper.join("-"),
-    // dot.case: open.code
-    lower.join("."),
-  ];
-}
-
-export function buildVariantRegex(variants: string[]): RegExp {
-  const escaped = variants.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-  return new RegExp(escaped.join("|"), "g");
-}
 
 function parseBool(value: string | undefined): boolean | undefined {
   if (value === undefined) return undefined;
@@ -186,7 +131,7 @@ async function loadConfig(state: ReplaceState): Promise<ReplaceConfig> {
   }
 }
 
-export function replaceOpencode(
+function replaceOpencode(
   text: string,
   replacement: string,
   regex?: RegExp,
@@ -195,9 +140,7 @@ export function replaceOpencode(
   return text.replace(regex ?? OPENCODE_REGEX, replacement);
 }
 
-export function mergeRanges(
-  ranges: Array<[number, number]>,
-): Array<[number, number]> {
+function mergeRanges(ranges: Array<[number, number]>): Array<[number, number]> {
   if (ranges.length === 0) return [];
 
   const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
@@ -218,7 +161,7 @@ export function mergeRanges(
   return merged;
 }
 
-export function replaceOutsideRanges(
+function replaceOutsideRanges(
   text: string,
   replacement: string,
   ranges: Array<[number, number]>,
@@ -253,7 +196,7 @@ export function replaceOutsideRanges(
   return result;
 }
 
-export function replaceExcludingUrlsAndPaths(
+function replaceExcludingUrlsAndPaths(
   text: string,
   replacement: string,
   regex?: RegExp,
@@ -275,7 +218,7 @@ export function replaceExcludingUrlsAndPaths(
   return replaceOutsideRanges(text, replacement, ranges, regex);
 }
 
-export function replaceInInlineCodeSegments(
+function replaceInInlineCodeSegments(
   text: string,
   replacement: string,
   regex?: RegExp,
@@ -289,7 +232,7 @@ export function replaceInInlineCodeSegments(
     .join("`");
 }
 
-export function replaceInText(
+function replaceInText(
   text: string,
   replacement: string,
   regex?: RegExp,
@@ -545,3 +488,5 @@ export const RenamerReplacePlugin: Plugin = async ({
     },
   };
 };
+
+export default RenamerReplacePlugin;
