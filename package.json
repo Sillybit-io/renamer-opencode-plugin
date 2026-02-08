@@ -1,6 +1,6 @@
 {
   "name": "@sillybit/renamer-opencode-plugin",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "OpenCode plugin that replaces case-insensitive 'OpenCode' text with a configurable value (default: 'Renamer') across chat messages, system prompts, tool outputs, and session titles",
   "type": "module",
   "main": "dist/index.js",

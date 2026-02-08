@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1](https://github.com/Sillybit-io/renamer-opencode-plugin/compare/renamer-opencode-plugin-v0.2.0...renamer-opencode-plugin-v0.2.1) (2026-02-08)
+
+
+### Bug Fixes
+
+* triggered release ([a22e2e5](https://github.com/Sillybit-io/renamer-opencode-plugin/commit/a22e2e57ca8b7b8f001e56e7d0a5efff17c41916))
+
 ## [0.2.0](https://github.com/Sillybit-io/renamer-opencode-plugin/compare/renamer-opencode-plugin-v0.1.3...renamer-opencode-plugin-v0.2.0) (2026-02-08)
 
 
