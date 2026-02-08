@@ -57,7 +57,15 @@ Example:
 ```json
 {
   "enabled": true,
-  "replacement": "Renamer"
+  "replacement": "Renamer",
+  "hooks": {
+    "chatMessage": true,
+    "system": true,
+    "messageHistory": true,
+    "textComplete": true,
+    "toolOutput": true
+  },
+  "caseVariants": false
 }
 ```
 
@@ -65,6 +73,87 @@ Example:
 
 - `OPENCODE_RENAMER_REPLACE_ENABLED` (`true`/`false`, also supports `1/0`, `yes/no`, `on/off`)
 - `OPENCODE_RENAMER_REPLACE_TEXT` (non-empty string)
+
+## Hook Configuration
+
+By default, all hooks are enabled. You can selectively disable specific hooks using the `hooks` configuration:
+
+```json
+{
+  "enabled": true,
+  "replacement": "Renamer",
+  "hooks": {
+    "chatMessage": false, // Disable replacement in chat messages
+    "system": true, // Keep replacement in system prompts
+    "messageHistory": true, // Keep replacement in message history
+    "textComplete": true, // Keep replacement in text completions
+    "toolOutput": true // Keep replacement in tool outputs
+  }
+}
+```
+
+**Available hook toggles:**
+
+- `chatMessage` - Controls replacement in chat messages
+- `system` - Controls replacement in system prompts
+- `messageHistory` - Controls replacement in message history
+- `textComplete` - Controls replacement in text completions
+- `toolOutput` - Controls replacement in tool outputs
+
+**Note:** Session title replacement (the `event` handler) is always active when `enabled: true` and cannot be disabled via hooks configuration.
+
+## Case Variant Matching
+
+By default, the plugin only matches `opencode` (case-insensitive). You can enable matching of case variants using the `caseVariants` option:
+
+```json
+{
+  "enabled": true,
+  "replacement": "Renamer",
+  "caseVariants": true
+}
+```
+
+When `caseVariants: true`, the plugin matches and replaces these 7 variants:
+
+- **camelCase**: `openCode` → `Renamer`
+- **PascalCase**: `OpenCode` → `Renamer`
+- **kebab-case**: `open-code` → `Renamer`
+- **snake_case**: `open_code` → `Renamer`
+- **SCREAMING_SNAKE**: `OPEN_CODE` → `Renamer`
+- **SCREAMING_KEBAB**: `OPEN-CODE` → `Renamer`
+- **dot.case**: `open.code` → `Renamer`
+
+**Important notes:**
+
+- Replacement is always the literal `replacement` string (not case-aware)
+- Variants respect protected ranges (URLs, paths, code blocks)
+- Default is `false` for backward compatibility
+
+**Example:**
+
+Input:
+
+```
+Use open-code or open_code in your project
+Visit https://open-code.dev for docs
+```
+
+Output (with `caseVariants: true`):
+
+```
+Use Renamer or Renamer in your project
+Visit https://open-code.dev for docs
+```
+
+Output (with `caseVariants: true`):
+
+```
+Use Renamer or Renamer in your project
+Visit https://open-code.dev for docs
+```
+
+The URL is protected, but the text variants are replaced.
 
 ## Examples
 
@@ -93,6 +182,7 @@ echo "opencode"
 ## Behavior details
 
 - Match is case-insensitive: `OpenCode`, `OPENCODE`, `opencode` all become your `replacement`.
+- **Case variant matching**: When `caseVariants: true` is enabled, variants like `open-code` or `open_code` are also matched and replaced.
 - Replacement target is intentionally fixed to `opencode` (not configurable).
 
 ## Development
