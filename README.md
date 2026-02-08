@@ -41,6 +41,24 @@ bun add -d @sillybit/renamer-opencode-plugin
 
 OpenCode installs npm plugins automatically at startup (cached under `~/.cache/opencode/node_modules/`), so the manual install step is optional.
 
+## Updating the plugin
+
+If the plugin is installed in your project `devDependencies`, update it with Bun:
+
+```bash
+bun update -d @sillybit/renamer-opencode-plugin
+```
+
+To force the latest published version:
+
+```bash
+bun add -d @sillybit/renamer-opencode-plugin@latest
+```
+
+After updating, restart OpenCode so it reloads the plugin.
+
+If you only reference the plugin in `opencode.json`/`opencode.jsonc` (without adding it to your project dependencies), restarting OpenCode is usually enough for it to fetch the newest cached-compatible version.
+
 ## Configuration
 
 Config is optional. If you don’t configure anything, the plugin is enabled and replaces `opencode` → `Renamer`.
@@ -136,13 +154,6 @@ Input:
 
 ```
 Use open-code or open_code in your project
-Visit https://open-code.dev for docs
-```
-
-Output (with `caseVariants: true`):
-
-```
-Use Renamer or Renamer in your project
 Visit https://open-code.dev for docs
 ```
 
