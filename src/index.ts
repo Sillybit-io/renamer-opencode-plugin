@@ -3,9 +3,18 @@ import os from "node:os";
 import path from "node:path";
 import type { Plugin } from "@opencode-ai/plugin";
 
+export type HooksConfig = {
+  chatMessage: boolean;
+  system: boolean;
+  messageHistory: boolean;
+  textComplete: boolean;
+  toolOutput: boolean;
+};
+
 type ReplaceConfig = {
   enabled: boolean;
   replacement: string;
+  hooks: HooksConfig;
 };
 
 type OptionalReplaceConfig = Partial<ReplaceConfig>;
@@ -17,9 +26,29 @@ type ReplaceState = {
   globalConfigPath?: string;
 };
 
+export const DEFAULT_HOOKS_CONFIG: HooksConfig = {
+  chatMessage: true,
+  system: true,
+  messageHistory: true,
+  textComplete: true,
+  toolOutput: true,
+};
+
+export function mergeHooksConfig(
+  globalHooks: Partial<HooksConfig> | undefined,
+  projectHooks: Partial<HooksConfig> | undefined,
+): HooksConfig {
+  return {
+    ...DEFAULT_HOOKS_CONFIG,
+    ...(globalHooks ?? {}),
+    ...(projectHooks ?? {}),
+  };
+}
+
 const DEFAULT_CONFIG: ReplaceConfig = {
   enabled: true,
   replacement: "Renamer",
+  hooks: DEFAULT_HOOKS_CONFIG,
 };
 
 const CONFIG_FILENAME = "renamer-config.json";
@@ -76,6 +105,14 @@ async function loadConfig(state: ReplaceState): Promise<ReplaceConfig> {
       ...DEFAULT_CONFIG,
       ...(globalConfig ?? {}),
       ...(projectConfig ?? {}),
+      hooks: mergeHooksConfig(
+        (globalConfig as Record<string, unknown> | undefined)?.hooks as
+          | Partial<HooksConfig>
+          | undefined,
+        (projectConfig as Record<string, unknown> | undefined)?.hooks as
+          | Partial<HooksConfig>
+          | undefined,
+      ),
     };
 
     const envEnabled = parseBool(process.env[ENV_ENABLED]);
@@ -331,6 +368,7 @@ export const RenamerReplacePlugin: Plugin = async ({
     "chat.message": async (_input, output) => {
       await withConfig((config) => {
         if (!config.enabled) return;
+        if (!config.hooks.chatMessage) return;
         if (!output.parts || !Array.isArray(output.parts)) return;
         replaceInParts(
           output.parts as Array<Record<string, unknown>>,
@@ -344,6 +382,7 @@ export const RenamerReplacePlugin: Plugin = async ({
     "experimental.chat.system.transform": async (_input, output) => {
       await withConfig((config) => {
         if (!config.enabled) return;
+        if (!config.hooks.system) return;
         const system = output?.system;
         if (!system || !Array.isArray(system)) return;
         for (let i = 0; i < system.length; i += 1) {
@@ -362,6 +401,7 @@ export const RenamerReplacePlugin: Plugin = async ({
     "experimental.chat.messages.transform": async (_input, output) => {
       await withConfig((config) => {
         if (!config.enabled) return;
+        if (!config.hooks.messageHistory) return;
         if (!output.messages || !Array.isArray(output.messages)) return;
         replaceInMessages(
           output.messages as Array<{
@@ -381,6 +421,7 @@ export const RenamerReplacePlugin: Plugin = async ({
     "experimental.text.complete": async (_input, output) => {
       await withConfig((config) => {
         if (!config.enabled) return;
+        if (!config.hooks.textComplete) return;
         if (typeof output.text !== "string") return;
         output.text = replaceInText(output.text, config.replacement);
       }).catch((error) => {
@@ -394,6 +435,7 @@ export const RenamerReplacePlugin: Plugin = async ({
     "tool.execute.after": async (_input, output) => {
       await withConfig((config) => {
         if (!config.enabled) return;
+        if (!config.hooks.toolOutput) return;
         if (typeof output.title === "string") {
           output.title = replaceInText(output.title, config.replacement);
         }
