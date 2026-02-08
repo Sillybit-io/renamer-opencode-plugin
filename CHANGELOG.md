@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/Sillybit-io/renamer-opencode-plugin/compare/renamer-opencode-plugin-v0.1.3...renamer-opencode-plugin-v0.2.0) (2026-02-08)
+
+
+### Features
+
+* add per-hook scope filtering configuration ([074380e](https://github.com/Sillybit-io/renamer-opencode-plugin/commit/074380e867b95969b0fd6bef11288dc8375ac5a1))
+
+
+### Bug Fixes
+
+* prevent URL duplication from overlapping regex ranges ([14655b2](https://github.com/Sillybit-io/renamer-opencode-plugin/commit/14655b2840b3cd4a8226efb5b652302025b35c94))
+
 ## [0.1.3](https://github.com/Sillybit-io/renamer-opencode-plugin/compare/renamer-opencode-plugin-v0.1.2...renamer-opencode-plugin-v0.1.3) (2026-01-15)
 
 
