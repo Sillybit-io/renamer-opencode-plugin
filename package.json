@@ -1,7 +1,7 @@
 {
   "name": "@sillybit/renamer-opencode-plugin",
   "version": "0.1.3",
-  "description": "ClaudeCode plugin that replaces case-insensitive 'ClaudeCode' text with a configurable value (default: 'Renamer') across chat messages, system prompts, tool outputs, and session titles",
+  "description": "OpenCode plugin that replaces case-insensitive 'OpenCode' text with a configurable value (default: 'Renamer') across chat messages, system prompts, tool outputs, and session titles",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -37,8 +37,8 @@
     "url": "https://github.com/Sillybit-io/renamer-opencode-plugin/issues"
   },
   "keywords": [
-    "ClaudeCode",
-    "ClaudeCode-plugin",
+    "OpenCode",
+    "OpenCode-plugin",
     "renamer",
     "text-transform"
   ],
@@ -46,7 +46,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@ClaudeCode-ai/plugin": "^1.1.21"
+    "@opencode-ai/plugin": "^1.1.53"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.11",

@@ -15,6 +15,7 @@ type ReplaceConfig = {
   enabled: boolean;
   replacement: string;
   hooks: HooksConfig;
+  caseVariants: boolean;
 };
 
 type OptionalReplaceConfig = Partial<ReplaceConfig>;
@@ -24,6 +25,7 @@ type ReplaceState = {
   lastLoaded?: number;
   projectConfigPath?: string;
   globalConfigPath?: string;
+  variantRegex?: RegExp;
 };
 
 export const DEFAULT_HOOKS_CONFIG: HooksConfig = {
@@ -49,6 +51,7 @@ const DEFAULT_CONFIG: ReplaceConfig = {
   enabled: true,
   replacement: "Renamer",
   hooks: DEFAULT_HOOKS_CONFIG,
+  caseVariants: false,
 };
 
 const CONFIG_FILENAME = "renamer-config.json";
@@ -61,6 +64,43 @@ const PATH_REGEX =
   /(?:\b[a-zA-Z]:\\[^\s`"')\]]+)|(?:~\/[^\s`"')\]]+)|(?:\.\.?\/[^\s`"')\]]+)/g;
 
 const OPENCODE_REGEX = /opencode/gi;
+
+export function splitIntoWords(target: string): string[] {
+  // For "opencode", hardcoded since it has no camelCase boundaries
+  if (target.toLowerCase() === "opencode") {
+    return ["open", "code"];
+  }
+  return [target];
+}
+
+export function generateCaseVariants(words: string[]): string[] {
+  const lower = words.map((w) => w.toLowerCase());
+  const upper = words.map((w) => w.toUpperCase());
+  const capitalize = (w: string) =>
+    w[0].toUpperCase() + w.slice(1).toLowerCase();
+
+  return [
+    // camelCase: openCode
+    lower[0] + words.slice(1).map(capitalize).join(""),
+    // PascalCase: OpenCode
+    words.map(capitalize).join(""),
+    // kebab-case: open-code
+    lower.join("-"),
+    // snake_case: open_code
+    lower.join("_"),
+    // SCREAMING_SNAKE: OPEN_CODE
+    upper.join("_"),
+    // SCREAMING_KEBAB: OPEN-CODE
+    upper.join("-"),
+    // dot.case: open.code
+    lower.join("."),
+  ];
+}
+
+export function buildVariantRegex(variants: string[]): RegExp {
+  const escaped = variants.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return new RegExp(escaped.join("|"), "g");
+}
 
 function parseBool(value: string | undefined): boolean | undefined {
   if (value === undefined) return undefined;
@@ -125,6 +165,17 @@ async function loadConfig(state: ReplaceState): Promise<ReplaceConfig> {
       merged.replacement = envReplacement;
     }
 
+    // Compile variant regex when caseVariants is enabled
+    if (merged.caseVariants) {
+      const words = splitIntoWords("opencode");
+      const variants = generateCaseVariants(words);
+      // Also include base case-insensitive variants
+      variants.push("opencode", "Opencode", "OpenCode", "OPENCODE");
+      state.variantRegex = buildVariantRegex(variants);
+    } else {
+      state.variantRegex = undefined;
+    }
+
     state.cachedConfig = merged;
     state.lastLoaded = Date.now();
     return merged;
@@ -135,9 +186,13 @@ async function loadConfig(state: ReplaceState): Promise<ReplaceConfig> {
   }
 }
 
-export function replaceOpencode(text: string, replacement: string): string {
+export function replaceOpencode(
+  text: string,
+  replacement: string,
+  regex?: RegExp,
+): string {
   if (!text) return text;
-  return text.replace(OPENCODE_REGEX, replacement);
+  return text.replace(regex ?? OPENCODE_REGEX, replacement);
 }
 
 export function mergeRanges(
@@ -167,8 +222,9 @@ export function replaceOutsideRanges(
   text: string,
   replacement: string,
   ranges: Array<[number, number]>,
+  regex?: RegExp,
 ): string {
-  if (ranges.length === 0) return replaceOpencode(text, replacement);
+  if (ranges.length === 0) return replaceOpencode(text, replacement, regex);
   const sorted = mergeRanges(
     ranges
       .map(
@@ -184,14 +240,14 @@ export function replaceOutsideRanges(
 
   for (const [start, end] of sorted) {
     if (start > cursor) {
-      result += replaceOpencode(text.slice(cursor, start), replacement);
+      result += replaceOpencode(text.slice(cursor, start), replacement, regex);
     }
     result += text.slice(start, end);
     cursor = Math.max(cursor, end);
   }
 
   if (cursor < text.length) {
-    result += replaceOpencode(text.slice(cursor), replacement);
+    result += replaceOpencode(text.slice(cursor), replacement, regex);
   }
 
   return result;
@@ -200,6 +256,7 @@ export function replaceOutsideRanges(
 export function replaceExcludingUrlsAndPaths(
   text: string,
   replacement: string,
+  regex?: RegExp,
 ): string {
   const ranges: Array<[number, number]> = [];
 
@@ -215,29 +272,34 @@ export function replaceExcludingUrlsAndPaths(
     ranges.push([match.index, match.index + match[0].length]);
   }
 
-  return replaceOutsideRanges(text, replacement, ranges);
+  return replaceOutsideRanges(text, replacement, ranges, regex);
 }
 
 export function replaceInInlineCodeSegments(
   text: string,
   replacement: string,
+  regex?: RegExp,
 ): string {
   const segments = text.split("`");
   return segments
     .map((segment, index) => {
       if (index % 2 === 1) return segment;
-      return replaceExcludingUrlsAndPaths(segment, replacement);
+      return replaceExcludingUrlsAndPaths(segment, replacement, regex);
     })
     .join("`");
 }
 
-export function replaceInText(text: string, replacement: string): string {
+export function replaceInText(
+  text: string,
+  replacement: string,
+  regex?: RegExp,
+): string {
   if (!text || typeof text !== "string") return text;
   const blocks = text.split("```");
   return blocks
     .map((block, index) => {
       if (index % 2 === 1) return block;
-      return replaceInInlineCodeSegments(block, replacement);
+      return replaceInInlineCodeSegments(block, replacement, regex);
     })
     .join("```");
 }
@@ -245,28 +307,29 @@ export function replaceInText(text: string, replacement: string): string {
 function replaceInParts(
   parts: Array<Record<string, unknown>>,
   replacement: string,
+  regex?: RegExp,
 ): void {
   if (!parts || !Array.isArray(parts)) return;
   for (const part of parts) {
     if (part.type === "text" && typeof part.text === "string") {
-      part.text = replaceInText(part.text, replacement);
+      part.text = replaceInText(part.text, replacement, regex);
     }
 
     if (part.type === "subtask") {
       if (typeof part.prompt === "string") {
-        part.prompt = replaceInText(part.prompt, replacement);
+        part.prompt = replaceInText(part.prompt, replacement, regex);
       }
       if (typeof part.description === "string") {
-        part.description = replaceInText(part.description, replacement);
+        part.description = replaceInText(part.description, replacement, regex);
       }
     }
 
     if (typeof part.title === "string") {
-      part.title = replaceInText(part.title, replacement);
+      part.title = replaceInText(part.title, replacement, regex);
     }
 
     if (typeof part.description === "string") {
-      part.description = replaceInText(part.description, replacement);
+      part.description = replaceInText(part.description, replacement, regex);
     }
   }
 }
@@ -277,12 +340,17 @@ function replaceInMessages(
     parts: Array<Record<string, unknown>>;
   }>,
   replacement: string,
+  regex?: RegExp,
 ): void {
   if (!messages || !Array.isArray(messages)) return;
   for (const message of messages) {
-    replaceInParts(message.parts, replacement);
+    replaceInParts(message.parts, replacement, regex);
     if (typeof message.info?.title === "string") {
-      message.info.title = replaceInText(message.info.title, replacement);
+      message.info.title = replaceInText(
+        message.info.title,
+        replacement,
+        regex,
+      );
     }
   }
 }
@@ -290,10 +358,14 @@ function replaceInMessages(
 function updateSessionTitleIfNeeded(
   title: string | undefined,
   replacement: string,
+  regex?: RegExp,
 ): string | undefined {
   if (!title) return title;
-  if (!OPENCODE_REGEX.test(title)) return title;
-  return replaceInText(title, replacement);
+  const testRegex = regex ?? OPENCODE_REGEX;
+  if (!testRegex.test(title)) return title;
+  // Reset lastIndex since test() advances it for global regexes
+  testRegex.lastIndex = 0;
+  return replaceInText(title, replacement, regex);
 }
 
 export const RenamerReplacePlugin: Plugin = async ({
@@ -348,7 +420,11 @@ export const RenamerReplacePlugin: Plugin = async ({
         await withConfig(async (config) => {
           if (!config.enabled) return;
           const title = (event as { title?: string }).title;
-          const updated = updateSessionTitleIfNeeded(title, config.replacement);
+          const updated = updateSessionTitleIfNeeded(
+            title,
+            config.replacement,
+            state.variantRegex,
+          );
           if (!updated || updated === title) return;
           const sessionID = (event as { sessionID?: string }).sessionID;
           if (!sessionID) return;
@@ -373,6 +449,7 @@ export const RenamerReplacePlugin: Plugin = async ({
         replaceInParts(
           output.parts as Array<Record<string, unknown>>,
           config.replacement,
+          state.variantRegex,
         );
       }).catch((error) => {
         console.error("[renamer-opencode-plugin] chat.message error:", error);
@@ -387,7 +464,11 @@ export const RenamerReplacePlugin: Plugin = async ({
         if (!system || !Array.isArray(system)) return;
         for (let i = 0; i < system.length; i += 1) {
           if (typeof system[i] === "string") {
-            system[i] = replaceInText(system[i], config.replacement);
+            system[i] = replaceInText(
+              system[i],
+              config.replacement,
+              state.variantRegex,
+            );
           }
         }
       }).catch((error) => {
@@ -409,6 +490,7 @@ export const RenamerReplacePlugin: Plugin = async ({
             parts: Array<Record<string, unknown>>;
           }>,
           config.replacement,
+          state.variantRegex,
         );
       }).catch((error) => {
         console.error(
@@ -423,7 +505,11 @@ export const RenamerReplacePlugin: Plugin = async ({
         if (!config.enabled) return;
         if (!config.hooks.textComplete) return;
         if (typeof output.text !== "string") return;
-        output.text = replaceInText(output.text, config.replacement);
+        output.text = replaceInText(
+          output.text,
+          config.replacement,
+          state.variantRegex,
+        );
       }).catch((error) => {
         console.error(
           "[renamer-opencode-plugin] experimental.text.complete error:",
@@ -437,10 +523,18 @@ export const RenamerReplacePlugin: Plugin = async ({
         if (!config.enabled) return;
         if (!config.hooks.toolOutput) return;
         if (typeof output.title === "string") {
-          output.title = replaceInText(output.title, config.replacement);
+          output.title = replaceInText(
+            output.title,
+            config.replacement,
+            state.variantRegex,
+          );
         }
         if (typeof output.output === "string") {
-          output.output = replaceInText(output.output, config.replacement);
+          output.output = replaceInText(
+            output.output,
+            config.replacement,
+            state.variantRegex,
+          );
         }
       }).catch((error) => {
         console.error(
